@@ -9,7 +9,7 @@ A custom XBPS repository providing `noctalia-qs` and `noctalia-shell` packages f
 ### 1. Add the repository source
 
 ```bash
-echo "repository=https://yourusername.github.io/your-repo" \
+echo "repository=https://rxelelo.github.io/noctalia-void-repo" \
   | sudo tee /etc/xbps.d/noctalia.conf
 ```
 
@@ -19,7 +19,7 @@ Packages in this repository are signed. You need to trust the public key before 
 
 ```bash
 sudo mkdir -p /var/db/xbps/keys
-curl -fsSL https://yourusername.github.io/your-repo/public.pem \
+curl -fsSL https://rxelelo.github.io/noctalia-void-repo/public.pem \
   | sudo tee /var/db/xbps/keys/noctalia.pem
 ```
 
