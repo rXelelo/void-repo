@@ -36,7 +36,10 @@ jobs:
           chown -R builder:builder /home/builder/void-packages
 
       - name: Bootstrap
-        run: su builder -c "cd /home/builder/void-packages && ./xbps-src binary-bootstrap"
+        run: |
+          su builder -c "cd /home/builder/void-packages && ./xbps-src binary-bootstrap"
+          touch /home/builder/void-packages/masterdir/.xbps_chroot_init
+          chown builder:builder /home/builder/void-packages/masterdir/.xbps_chroot_init
 
       - name: Debug
         run: |
