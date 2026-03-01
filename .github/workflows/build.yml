@@ -35,14 +35,19 @@ jobs:
           EOF
           chown -R builder:builder /home/builder/void-packages
 
-      - name: Setup and build
+      - name: Bootstrap
+        run: su builder -c "cd /home/builder/void-packages && ./xbps-src binary-bootstrap"
+
+      - name: Debug
         run: |
-          su builder -c "
-            cd /home/builder/void-packages
-            ./xbps-src binary-bootstrap
-            ./xbps-src pkg noctalia-qs
-            ./xbps-src pkg noctalia-shell
-          "
+          ls -la /home/builder/void-packages/masterdir/
+          cat /home/builder/void-packages/masterdir/.xbps_chroot_init 2>/dev/null || echo "no init file"
+
+      - name: Build noctalia-qs
+        run: su builder -c "cd /home/builder/void-packages && ./xbps-src pkg noctalia-qs"
+
+      - name: Build noctalia-shell
+        run: su builder -c "cd /home/builder/void-packages && ./xbps-src pkg noctalia-shell"
 
       - name: Sign and index repo
         run: |
