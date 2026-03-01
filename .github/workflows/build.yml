@@ -9,50 +9,43 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/void-linux/void-linux:latest-full-x86_64
+      image: ghcr.io/void-linux/void-glibc-full
       options: --privileged
+      volumes:
+        - /dev:/dev
 
     steps:
-      - name: Install base dependencies
+      - name: Prepare container
         run: |
-          xbps-install -Syu xbps
-          xbps-install -yu
-          xbps-install -y git libstdc++ tar curl xtools sudo
+          mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
+          sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
+          xbps-install -Syu xbps && xbps-install -yu
+          xbps-install -y sudo bash curl git xtools libstdc++
+          useradd -G xbuilder -M builder
 
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: classabbyamp/treeless-checkout-action@v1
 
       - name: Setup void-packages
         run: |
-          useradd -m builder
-          groupadd xbuilder || true
-          usermod -aG xbuilder,wheel builder
-          echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" | tee /etc/sudoers
           git clone --depth=1 https://github.com/void-linux/void-packages /home/builder/void-packages
           cp -r srcpkgs/* /home/builder/void-packages/srcpkgs/
-          chown -R builder:builder /home/builder/void-packages 
-          chown -R builder:builder /proc/self/uid_map
-          su - builder -c "/home/builder/void-packages/xbps-src binary-bootstrap"
-          cat >> /home/builder/void-packages/etc/conf << 'EOF'
-          XBPS_ALLOW_CHROOT_BREAKOUT=yes
-          XBPS_CHROOT_CMD=ethereal
-          XBPS_MASTERDIR=/home/builder/void-packages/masterdir-x86_64
-          EOF
-  
-      - name: Debug
-        run: |
-          ls -la /home/builder/void-packages/
-          ls -la /home/builder/void-packages/masterdir-x86_64/
-          cat /home/builder/void-packages/masterdir-x86_64/.xbps_chroot_init 2>/dev/null || echo "no init file"
+          chown -R builder:builder /home/builder/void-packages
+
+      - name: Bootstrap
+        run: sudo -Eu builder sh -c "cd /home/builder/void-packages && ./xbps-src binary-bootstrap"
 
       - name: Build noctalia-qs
-        run: su builder -c "cd /home/builder/void-packages && ./xbps-src pkg noctalia-qs"
+        run: sudo -Eu builder sh -c "cd /home/builder/void-packages && ./xbps-src pkg noctalia-qs"
 
       - name: Build noctalia-shell
-        run: su builder -c "cd /home/builder/void-packages && ./xbps-src pkg noctalia-shell"
+        run: sudo -Eu builder sh -c "cd /home/builder/void-packages && ./xbps-src pkg noctalia-shell"
 
       - name: Sign and index repo
+        env:
+          PRIVATE_KEY: ${{ secrets.XBPS_PRIVATE_KEY }}
         run: |
-          echo "${{ secrets.XBPS_PRIVATE_KEY }}" > /tmp/privkey.pem
+          echo "$PRIVATE_KEY" > /tmp/privkey.pem
           chmod 600 /tmp/privkey.pem
           xbps-rindex -a /home/builder/void-packages/hostdir/binpkgs/*.xbps
           xbps-rindex --sign --signedby "Rain Xelelo" \
@@ -62,5 +55,7 @@ jobs:
       - name: Publish to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: /home/builder/void-packages/hostdir/binpkgs
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: /home/builder/void-packages/hostdir/binpkgs
