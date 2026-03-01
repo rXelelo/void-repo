@@ -29,7 +29,8 @@ jobs:
           echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" | tee /etc/sudoers
           git clone --depth=1 https://github.com/void-linux/void-packages /home/builder/void-packages
           cp -r srcpkgs/* /home/builder/void-packages/srcpkgs/
-          chown -R builder:builder /home/builder/void-packages
+          chown -R builder:builder /home/builder/void-packages 
+          chown -R builder:builder /proc/self/uid_map
           su - builder -c "/home/builder/void-packages/xbps-src binary-bootstrap"
           cat >> /home/builder/void-packages/etc/conf << 'EOF'
           XBPS_ALLOW_CHROOT_BREAKOUT=yes
