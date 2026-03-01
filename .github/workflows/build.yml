@@ -49,6 +49,7 @@ jobs:
 
       - name: Debug
         run: |
+          ls -la /home/builder/void-packages/
           ls -la /home/builder/void-packages/masterdir/
           cat /home/builder/void-packages/masterdir/.xbps_chroot_init 2>/dev/null || echo "no init file"
 
