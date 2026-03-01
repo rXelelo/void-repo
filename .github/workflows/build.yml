@@ -40,9 +40,11 @@ jobs:
           echo XBPS_BUILD_ENVIRONMENT=void-packages-ci >> etc/conf
           echo XBPS_CHROOT_CMD=uchroot >> etc/conf
           sudo -Eu builder ./xbps-src binary-bootstrap
+      - name: Build noctalia-qs
+        run: sudo -Eu builder sh -c "cd void-packages && ./xbps-src pkg noctalia-qs"
 
-      - name: Build Rushie Client
-        run: sudo -Eu builder sh -c "cd void-packages && ./xbps-src pkg rclient"
+      - name: Build noctalia-shell
+        run: sudo -Eu builder sh -c "cd void-packages && ./xbps-src pkg noctalia-shell"
 
       - name: Sign and index repo
         run: |
