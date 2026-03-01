@@ -28,21 +28,13 @@ jobs:
           usermod -aG xbuilder builder
           git clone --depth=1 https://github.com/void-linux/void-packages /home/builder/void-packages
           cp -r srcpkgs/* /home/builder/void-packages/srcpkgs/
+          su - builder -c "/home/builder/void-packages/xbps-src binary-bootstrap"
           cat >> /home/builder/void-packages/etc/conf << 'EOF'
           XBPS_ALLOW_CHROOT_BREAKOUT=yes
           XBPS_CHROOT_CMD=ethereal
           XBPS_MASTERDIR=/home/builder/void-packages/masterdir
           EOF
           chown -R builder:builder /home/builder/void-packages
-
-      - name: Bootstrap
-        run: |
-          su builder -c "cd /home/builder/void-packages && ./xbps-src binary-bootstrap"
-          
-      - name: Verify Bootstrap
-        run: |
-          ls -la /home/builder/void-packages/masterdir/bin/xbps-shell || echo "ERROR: xbps-shell not found"
-          ls -la /home/builder/void-packages/masterdir/
   
       - name: Debug
         run: |
