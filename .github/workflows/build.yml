@@ -16,8 +16,8 @@ jobs:
         run: |
           xbps-install -Syu xbps
           xbps-install -yu
-          xbps-install -y git libstdc++ tar curl
-          
+          xbps-install -y git libstdc++ tar curl xtools
+
       - uses: actions/checkout@v4
 
       - name: Setup void-packages
@@ -34,12 +34,16 @@ jobs:
           ./xbps-src pkg noctalia-shell
 
       - name: Sign and index repo
+        env:
+          PRIVATE_KEY: ${{ secrets.XBPS_PRIVATE_KEY }}
         run: |
+          echo "$PRIVATE_KEY" > /tmp/privkey.pem
+          chmod 600 /tmp/privkey.pem
           cd void-packages
           xbps-rindex -a hostdir/binpkgs/*.xbps
-          # sign with your private key
           xbps-rindex --sign --signedby "Rain Xelelo" \
-            --privkey privkey.pem hostdir/binpkgs
+            --privkey /tmp/privkey.pem hostdir/binpkgs
+          rm /tmp/privkey.pem
 
       - name: Publish to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
