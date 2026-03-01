@@ -51,13 +51,13 @@ jobs:
         run: |
           echo "${{ secrets.XBPS_PRIVATE_KEY }}" > /tmp/privkey.pem
           openssl rsa -in /tmp/privkey.pem -out /tmp/privkey_rsa.pem
-          xbps-rindex -a /home/builder/void-packages/hostdir/binpkgs/*.xbps
+          xbps-rindex -a void-packages/hostdir/binpkgs/*.xbps
           xbps-rindex --sign --signedby "Rain Xelelo" \
-            --privkey /tmp/privkey_rsa.pem /home/builder/void-packages/hostdir/binpkgs
+            --privkey /tmp/privkey_rsa.pem void-packages/hostdir/binpkgs
           rm /tmp/privkey.pem /tmp/privkey_rsa.pem
           # copy to workspace so peaceiris can access it
           mkdir -p $GITHUB_WORKSPACE/repo
-          cp /home/builder/void-packages/hostdir/binpkgs/* $GITHUB_WORKSPACE/repo/
+          cp void-packages/hostdir/binpkgs/* $GITHUB_WORKSPACE/repo/
 
       - name: Publish to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
