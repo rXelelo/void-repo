@@ -62,7 +62,7 @@ jobs:
         run: |
           for pkg in ${{ steps.changed.outputs.packages }}; do
             echo "=> Building $pkg"
-            sudo -Eu builder sh -c "cd void-packages && ./xbps-src pkg $pkg"
+            sudo -Eu builder sh -c "cd void-packages && ./xbps-src -I pkg $pkg"
           done
 
       - name: Sign and index repo
