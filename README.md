@@ -13,17 +13,7 @@ echo "repository=https://rxelelo.github.io/noctalia-void-repo" \
   | sudo tee /etc/xbps.d/noctalia.conf
 ```
 
-### 2. Add the signing key
-
-Packages in this repository are signed. You need to trust the public key before installing anything:
-
-```bash
-sudo mkdir -p /var/db/xbps/keys
-curl -fsSL https://rxelelo.github.io/noctalia-void-repo/public.pem \
-  | sudo tee /var/db/xbps/keys/noctalia.pem
-```
-
-### 3. Sync and verify
+2. Sync and verify
 
 ```bash
 sudo xbps-install -S
