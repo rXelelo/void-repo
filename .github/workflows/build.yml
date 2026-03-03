@@ -4,10 +4,12 @@ on:
     branches: [main]
     paths:
       - 'srcpkgs/**'
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6am UTC
   workflow_dispatch:
 
 jobs:
-  build:
+  update:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -16,7 +18,105 @@ jobs:
       options: --privileged
       volumes:
         - /dev:/dev
+    outputs:
+      updated_packages: ${{ steps.autoupdate.outputs.updated_packages }}
+      has_updates: ${{ steps.autoupdate.outputs.has_updates }}
+    steps:
+      - name: Prepare container
+        run: |
+          mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
+          sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
+          xbps-install -Syu xbps && xbps-install -yu
+          xbps-install -y sudo bash curl git libstdc++
+          useradd -G xbuilder -M builder
 
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup void-packages
+        run: |
+          git clone --depth=1 https://github.com/void-linux/void-packages
+          cp -r srcpkgs/* void-packages/srcpkgs/
+          chown -R builder:builder void-packages
+
+      - name: Prepare masterdir
+        run: |
+          cd void-packages
+          echo XBPS_BUILD_ENVIRONMENT=void-packages-ci >> etc/conf
+          echo XBPS_CHROOT_CMD=uchroot >> etc/conf
+          echo XBPS_ALLOW_RESTRICTED=yes >> etc/conf
+          sudo -Eu builder ./xbps-src binary-bootstrap
+
+      - name: Check and apply updates
+        id: autoupdate
+        run: |
+          xbps-install -y xtools
+          UPDATED=""
+          for pkg in $(ls srcpkgs/); do
+            UPDATE=$(sudo -Eu builder sh -c "cd void-packages && ./xbps-src update-check $pkg 2>/dev/null" || true)
+            # Output is like: "discord-0.0.126 -> discord-0.0.127"
+            # Skip if empty or doesn't contain " -> "
+            echo "$UPDATE" | grep -q ' -> ' || continue
+            OLD_VER=$(echo "$UPDATE" | awk -F' -> ' '{print $1}' | rev | cut -d- -f1 | rev)
+            NEW_VER=$(echo "$UPDATE" | awk -F' -> ' '{print $2}' | rev | cut -d- -f1 | rev)
+            if [ -z "$NEW_VER" ] || [ "$OLD_VER" = "$NEW_VER" ]; then
+              continue
+            fi
+            echo "=> Update found for $pkg: $OLD_VER -> $NEW_VER"
+            # Update version and reset revision
+            sed -i "s/^version=.*/version=${NEW_VER}/" srcpkgs/$pkg/template
+            sed -i "s/^revision=.*/revision=0/" srcpkgs/$pkg/template
+            # Copy updated template into void-packages and regenerate checksum
+            cp srcpkgs/$pkg/template void-packages/srcpkgs/$pkg/template
+            chown builder:builder void-packages/srcpkgs/$pkg/template
+            if sudo -Eu builder sh -c "cd void-packages && xgensum -i srcpkgs/$pkg/template"; then
+              cp void-packages/srcpkgs/$pkg/template srcpkgs/$pkg/template
+              echo "=> Checksum updated for $pkg"
+            else
+              echo "=> WARNING: checksum update failed for $pkg, skipping"
+              git checkout -- srcpkgs/$pkg/template
+              continue
+            fi
+            UPDATED="$UPDATED $pkg"
+          done
+          UPDATED=$(echo $UPDATED | xargs)
+          if [ -n "$UPDATED" ]; then
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "updated_packages=$UPDATED" >> $GITHUB_OUTPUT
+          else
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "updated_packages=" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Commit updated templates
+        if: steps.autoupdate.outputs.has_updates == 'true'
+        run: |
+          git config --global --add safe.directory $GITHUB_WORKSPACE
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add srcpkgs/
+          git commit -m "auto-update: ${{ steps.autoupdate.outputs.updated_packages }}"
+          git push
+
+  build:
+    runs-on: ubuntu-latest
+    needs: update
+    # Run if: triggered by push/dispatch, OR if update job found new versions
+    if: |
+      always() && (
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' ||
+        needs.update.outputs.has_updates == 'true'
+      )
+    permissions:
+      contents: write
+    container:
+      image: ghcr.io/void-linux/void-glibc-full
+      options: --privileged
+      volumes:
+        - /dev:/dev
     steps:
       - name: Prepare container
         run: |
@@ -32,9 +132,11 @@ jobs:
       - name: Find changed packages
         id: changed
         run: |
-          # on workflow_dispatch build all packages
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "packages=$(ls srcpkgs/ | tr '\n' ' ')" >> $GITHUB_OUTPUT
+          elif [ -n "${{ needs.update.outputs.updated_packages }}" ]; then
+            # Build only the auto-updated packages
+            echo "packages=${{ needs.update.outputs.updated_packages }}" >> $GITHUB_OUTPUT
           else
             CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} \
               | grep '^srcpkgs/' \
@@ -56,6 +158,7 @@ jobs:
           cd void-packages
           echo XBPS_BUILD_ENVIRONMENT=void-packages-ci >> etc/conf
           echo XBPS_CHROOT_CMD=uchroot >> etc/conf
+          echo XBPS_ALLOW_RESTRICTED=yes >> etc/conf
           sudo -Eu builder ./xbps-src binary-bootstrap
 
       - name: Build changed packages
