@@ -186,17 +186,18 @@ jobs:
 
       - name: Merge with existing repo and clean old versions
         run: |
+          REPO_DIR="/__w/noctalia-void-repo/noctalia-void-repo/repo"
+          mkdir -p $REPO_DIR
+
           # Fetch existing gh-pages packages
           git fetch origin gh-pages 2>/dev/null || true
           mkdir -p /tmp/existing-repo
           git --work-tree=/tmp/existing-repo checkout origin/gh-pages -- . 2>/dev/null || true
+          cp /tmp/existing-repo/*.xbps $REPO_DIR/ 2>/dev/null || true
+          cp /tmp/existing-repo/*.sig2 $REPO_DIR/ 2>/dev/null || true
 
-          # Copy existing packages into repo (new ones will overwrite old versions)
-          cp /tmp/existing-repo/*.xbps $GITHUB_WORKSPACE/repo/ 2>/dev/null || true
-          cp /tmp/existing-repo/*.sig2 $GITHUB_WORKSPACE/repo/ 2>/dev/null || true
-
-          # Clean old versions - keep only latest of each package
-          cd $GITHUB_WORKSPACE/repo
+          # Clean old versions
+          cd $REPO_DIR
           for pkg in $(ls *.xbps 2>/dev/null | sed 's/-[0-9].*//' | sort -u); do
             LATEST=$(ls ${pkg}-*.xbps 2>/dev/null | sort -V | tail -1)
             for file in ${pkg}-*.xbps; do
@@ -206,7 +207,7 @@ jobs:
             done
           done
 
-          # Re-index with all remaining packages
+          # Re-index
           echo "${{ secrets.XBPS_PRIVATE_KEY }}" > /tmp/privkey.pem
           openssl rsa -in /tmp/privkey.pem -out /tmp/privkey_rsa.pem
           xbps-rindex -a *.xbps
