@@ -66,8 +66,9 @@ jobs:
             fi
             echo "=> Update found for $pkg: $OLD_VER -> $NEW_VER"
             # Update version and reset revision
-            sed -i "s/^version=.*/version=${NEW_VER}/" srcpkgs/$pkg/template
-            sed -i "s/^revision=.*/revision=0/" srcpkgs/$pkg/template
+            NEW_VER=$(echo "$NEW_VER" | tr -d '\n\r' | head -1)
+            sed -i "s|^version=.*|version=${NEW_VER}|" srcpkgs/$pkg/template
+            sed -i "s|^revision=.*|revision=0|" srcpkgs/$pkg/template
             # Copy updated template into void-packages and regenerate checksum
             cp srcpkgs/$pkg/template void-packages/srcpkgs/$pkg/template
             chown builder:builder void-packages/srcpkgs/$pkg/template
@@ -180,10 +181,28 @@ jobs:
           rm /tmp/privkey.pem /tmp/privkey_rsa.pem
           mkdir -p $GITHUB_WORKSPACE/repo
           cp void-packages/hostdir/binpkgs/* $GITHUB_WORKSPACE/repo/
-
+          
+      - name: Clean up old package versions
+        run: |
+          cd $GITHUB_WORKSPACE/repo
+          for pkg in $(ls *.xbps 2>/dev/null | sed 's/-[0-9].*//' | sort -u); do
+            LATEST=$(ls ${pkg}-*.xbps 2>/dev/null | sort -V | tail -1)
+            for file in ${pkg}-*.xbps; do
+              [ "$file" = "$LATEST" ] && continue
+              echo "=> Removing old: $file"
+              rm -f "$file" "${file}.sig2"
+            done
+          done
+          # Re-sign and re-index with only the remaining packages
+          echo "${{ secrets.XBPS_PRIVATE_KEY }}" > /tmp/privkey.pem
+          openssl rsa -in /tmp/privkey.pem -out /tmp/privkey_rsa.pem
+          xbps-rindex -a *.xbps
+          xbps-rindex --sign --signedby "Rain Xelelo" --privkey /tmp/privkey_rsa.pem .
+          rm /tmp/privkey.pem /tmp/privkey_rsa.pem
+          
       - name: Publish to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./repo
-          keep_files: true
+          keep_files: false
