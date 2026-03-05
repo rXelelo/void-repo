@@ -1,7 +1,7 @@
 # Template file for 'noctalia-qs'
 pkgname=noctalia-qs
 version=0.0.5
-revision=0
+revision=1
 short_desc="Custom fork of Quickshell powering Noctalia Shell"
 maintainer="Rain Xelelo <rXelelo@outlook.com>"
 license="LGPL-3.0-only"
@@ -13,9 +13,10 @@ build_style=cmake
 
 configure_args="
  -DCMAKE_BUILD_TYPE=Release
- -DDISTRIBUTOR='Void Linux'
+ -DDISTRIBUTOR="Void Linux"
  -DDISTRIBUTOR_DEBUGINFO_AVAILABLE=Yes
  -DCRASH_REPORTER=Off
+ -DGIT_REVISION=$(git -C ${wrksrc} rev-parse HEAD)
  -DINSTALL_QML_PREFIX=lib/qt6/qml
 "
 
