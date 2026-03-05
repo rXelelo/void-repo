@@ -1,7 +1,7 @@
 # Template file for 'noctalia-shell'
 pkgname=noctalia-shell
 version=4.6.3
-revision=0
+revision=1
 short_desc="A sleek and minimal desktop shell thoughtfully crafted for Wayland, built with Quickshell."
 maintainer="Rain Xelelo <rXelelo@outlook.com"
 license="MIT"
