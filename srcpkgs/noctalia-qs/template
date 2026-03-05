@@ -1,13 +1,13 @@
 # Template file for 'noctalia-qs'
 pkgname=noctalia-qs
-version=0.0.4
+version=0.0.5
 revision=0
 short_desc="Custom fork of Quickshell powering Noctalia Shell"
 maintainer="Rain Xelelo <rXelelo@outlook.com>"
 license="LGPL-3.0-only"
 homepage="https://github.com/noctalia-dev/noctalia-qs"
 distfiles="$homepage/archive/v${version}.tar.gz"
-checksum=
+checksum=b0552dcffa6ddfbf81fa890508fca50b2cfa46a2c95f7a6945b94cdb45052026
 
 build_style=cmake
 
