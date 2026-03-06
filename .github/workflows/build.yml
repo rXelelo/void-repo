@@ -162,11 +162,7 @@ jobs:
           sudo -Eu builder ./xbps-src binary-bootstrap
           echo "repository=https://rxelelo.github.io/noctalia-void-repo" > masterdir-x86_64/etc/xbps.d/10-noctalia.conf
           sudo -Eu builder ./xbps-src bootstrap-update
-          xbps-install -S curl
-          curl -s "https://rxelelo.github.io/noctalia-void-repo/f9:75:69:31:bd:ee:dd:5e:d7:48:97:7f:4b:f1:0f:72.plist" > /var/db/xbps/keys/f9:75:69:31:bd:ee:dd:5e:d7:48:97:7f:4b:f1:0f:72.plist
-          echo "repository=https://rxelelo.github.io/noctalia-void-repo" | tee /etc/xbps.d/noctalia.conf
-          xbps-install -Sy
-          sudo -Eu builder xbps-install -r masterdir-x86_64 jq curl -y
+          sudo -Eu builder xbps-install -r masterdir-x86_64 --repo=https://rxelelo.github.io/noctalia-void-repo jq curl noctalia-qs -y
 
       - name: Build changed package
         run: |
