@@ -48,7 +48,7 @@ jobs:
           echo XBPS_CHROOT_CMD=uchroot >> etc/conf
           echo XBPS_ALLOW_RESTRICTED=yes >> etc/conf
           sudo -Eu builder ./xbps-src binary-bootstrap
-          
+
       - name: Check and apply updates
         id: autoupdate
         run: |
@@ -180,6 +180,10 @@ jobs:
             echo "=> Building $pkg"
             sudo -Eu builder sh -c "cd void-packages && ./xbps-src -E pkg $pkg"
           done
+          # Record exactly what was just built (used by cleanup step)
+          ls void-packages/hostdir/binpkgs/*.xbps | xargs -n1 basename > /tmp/latest.list
+          echo "=> Built packages:"
+          cat /tmp/latest.list
 
       - name: Sign and index repo
         run: |
@@ -206,16 +210,17 @@ jobs:
           cp /tmp/existing-repo/*.xbps $REPO_DIR/ 2>/dev/null || true
           cp /tmp/existing-repo/*.sig2 $REPO_DIR/ 2>/dev/null || true
 
-          # Clean old versions (split on _ to avoid matching noctalia-shell vs noctalia-shell-git)
+          # Remove old versions of anything we just built
           cd $REPO_DIR
-          for pkg in $(ls *.xbps 2>/dev/null | sed 's/_[^_]*_[^_]*\.xbps$//' | sort -u); do
-            LATEST=$(ls ${pkg}_*.xbps 2>/dev/null | sort -V | tail -1)
-            for file in ${pkg}_*.xbps; do
-              [ "$file" = "$LATEST" ] && continue
-              echo "=> Removing old: $file"
+          while read newly_built; do
+            pkg_base=$(echo "$newly_built" | sed 's/-[0-9].*//')
+            echo "=> Cleaning old versions of: $pkg_base"
+            for file in $(ls *.xbps 2>/dev/null | grep "^${pkg_base}-[0-9]"); do
+              [ "$file" = "$newly_built" ] && continue
+              echo "   Removing: $file"
               rm -f "$file" "${file}.sig2"
             done
-          done
+          done < /tmp/latest.list
 
           # Re-index
           echo "${{ secrets.XBPS_PRIVATE_KEY }}" > /tmp/privkey.pem
