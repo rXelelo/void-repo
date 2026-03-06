@@ -29,9 +29,8 @@ do_fetch() {
 }
 
 do_install() {
+ cd "${XBPS_BUILDDIR}/${pkgname}"
  vmkdir etc/xdg/quickshell/noctalia-shell
- for f in *; do
-  [ "$f" = ".git" ] && continue
-  vcopy "$f" etc/xdg/quickshell/noctalia-shell/
- done
+ ls -la .
+ vcopy "*" etc/xdg/quickshell/noctalia-shell/
 }
