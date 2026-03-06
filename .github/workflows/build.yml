@@ -57,7 +57,6 @@ jobs:
           for pkg in $(ls srcpkgs/); do
             echo "=> Checking $pkg..."
 
-            # Get latest version only (tail -1 handles multiple version lines)
             UPDATE=$(sudo -Eu builder sh -c "cd void-packages && ./xbps-src update-check $pkg 2>/dev/null" | tail -1 || true)
             echo "$UPDATE" | grep -q ' -> ' || continue
 
@@ -68,11 +67,9 @@ jobs:
 
             echo "=> $pkg: $OLD_VER -> $NEW_VER"
 
-            # Update version and reset revision
             sed -i "s|^version=.*|version=${NEW_VER}|" srcpkgs/$pkg/template
             sed -i "s|^revision=.*|revision=0|" srcpkgs/$pkg/template
 
-            # Sync into void-packages and update checksum
             cp srcpkgs/$pkg/template void-packages/srcpkgs/$pkg/template
             chown builder:builder void-packages/srcpkgs/$pkg/template
 
@@ -170,7 +167,7 @@ jobs:
         run: |
           for pkg in ${{ steps.changed.outputs.packages }}; do
             echo "=> Building $pkg"
-            sudo -Eu builder sh -c "cd void-packages && ./xbps-src pkg $pkg"
+            sudo -Eu builder sh -c "cd void-packages && ./xbps-src -E pkg $pkg"
           done
 
       - name: Sign and index repo
@@ -198,11 +195,11 @@ jobs:
           cp /tmp/existing-repo/*.xbps $REPO_DIR/ 2>/dev/null || true
           cp /tmp/existing-repo/*.sig2 $REPO_DIR/ 2>/dev/null || true
 
-          # Clean old versions
+          # Clean old versions (split on _ to avoid matching noctalia-shell vs noctalia-shell-git)
           cd $REPO_DIR
-          for pkg in $(ls *.xbps 2>/dev/null | sed 's/-[0-9].*//' | sort -u); do
-            LATEST=$(ls ${pkg}-*.xbps 2>/dev/null | sort -V | tail -1)
-            for file in ${pkg}-*.xbps; do
+          for pkg in $(ls *.xbps 2>/dev/null | sed 's/_[^_]*_[^_]*\.xbps$//' | sort -u); do
+            LATEST=$(ls ${pkg}_*.xbps 2>/dev/null | sort -V | tail -1)
+            for file in ${pkg}_*.xbps; do
               [ "$file" = "$LATEST" ] && continue
               echo "=> Removing old: $file"
               rm -f "$file" "${file}.sig2"
