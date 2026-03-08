@@ -1,0 +1,141 @@
+name: Build Git and publish
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'srcpkgs/**'
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6am UTC
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    container:
+      image: ghcr.io/void-linux/void-glibc-full
+      options: --privileged
+      volumes:
+        - /dev:/dev
+    steps:
+      - name: Prepare container
+        run: |
+          mkdir -p /etc/xbps.d && cp /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/
+          sed -i 's|repo-default|repo-ci|g' /etc/xbps.d/*-repository-*.conf
+          xbps-install -Syu xbps && xbps-install -yu
+          xbps-install -y sudo bash curl git libstdc++
+          useradd -G xbuilder -M builder
+
+      - name: Checkout
+        uses: classabbyamp/treeless-checkout-action@v1
+
+      - name: Find -git packages
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PKGS=$(ls srcpkgs/ | grep -- '-git$' | tr '\n' ' ')
+          else
+            PKGS=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} \
+              | grep '^srcpkgs/' \
+              | cut -d'/' -f2 \
+              | grep -- '-git$' \
+              | sort -u \
+              | tr '\n' ' ')
+            # Fall back to all -git packages on schedule
+            if [ "${{ github.event_name }}" = "schedule" ]; then
+              PKGS=$(ls srcpkgs/ | grep -- '-git$' | tr '\n' ' ')
+            fi
+          fi
+          echo "packages=$PKGS" >> $GITHUB_OUTPUT
+          echo "Changed -git packages: $PKGS"
+
+      - name: Setup void-packages
+        run: |
+          git clone --depth=1 https://github.com/void-linux/void-packages
+          cp -r srcpkgs/* void-packages/srcpkgs/
+          chown -R builder:builder void-packages
+
+      - name: Prepare masterdir
+        run: |
+          cd void-packages
+          echo XBPS_BUILD_ENVIRONMENT=void-packages-ci >> etc/conf
+          echo XBPS_CHROOT_CMD=uchroot >> etc/conf
+          echo XBPS_ALLOW_RESTRICTED=yes >> etc/conf
+          sudo -Eu builder ./xbps-src binary-bootstrap
+          echo "<?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version=\"1.0\">
+          <dict>
+            <key>public-key</key>
+            <data>LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQ0lqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FnOEFNSUlDQ2dLQ0FnRUE2YTl1emdoRXYzajBCVmtBYTlWcgpqeC9UOGZtS2tvTXQvc0c2TTNGS2lNRUZ6RGlXNlh6QWwyNDY2SjNPbXQ1RnRzRXEwZWtvMTljTjBqdW9kMnh6CldST1hIbzdkdUh1UElBbExtM2p5Qy9kLzA2UDNmT0hKRFRkbFlldC9wUmRVMEtRZGRzU0x6Vzh2UVgwdkZFNXcKZ2hGSnpyT3hHOUJLcnRpV05HdmVWUXRJOGNWZWgxWnJ6NDVCQjlUelNIS3pQUGVQc3FWSVlrdjRMaWVpdVU1RQpLNGdDUlpxdGJ3VHRkK0tLbjFNVWNLY3lOZEllNFNQdVBRRWRpei9HUzdRQkNhTlRRUjNndStLcHQ2djVVMjB3CmhlcS91czVoY3g4bHlPeVBDNmlyQThwd2Z3V3VaM2ZZaExzcDJVRm83aG9rWFArN1A5eHp4OGRxMFNNYzBIK3AKODhnSDkzK0paTHFzd0lZNEpDMVZ0THNYQ1g0SU1YZXBQSU9rbzMyVlVMSWZhWVlDMS9HTjRGaXJYWDFvSGlxOQpLVFU3alFsaHUxbm8reTI1UWRWMWFuY1U3UHdCam5FYlRjZ2FEN1ZLanVRckhSS2hidEFjR21kSTUrWnZJYXYvCmcybHd3VXk4K3hqbm9vdlVUTk5nUk1hZEVIWk8xTCt5UFM4OWlYZUcvdU43M05HYlk0TkljU2FaQ1RsTVFZK3kKVmlBMkY5V21xUDJYWUtIbG5QWC9TbnFjaTdqNWRyMTdUTGtjZTBqZFI4b2hKRG5LU0dzMUxNVFlsMmVyZ1R6RgpHSVVvbmlwMEtzMys3SXRSYnNkTExWM2IrVDVGNGZpRU8rNXdYVitjREFVNDMzRS9RR2JOcVFyeDNIanhLSVdYCjAyc2tvUmZVdVpsMlVScXlLay9lNVhrQ0F3RUFBUT09Ci0tLS0tRU5EIFBVQkxJQyBLRVktLS0tLQo=</data>
+            <key>public-key-size</key>
+            <integer>4096</integer>
+            <key>signature-by</key>
+            <string>Rain Xelelo</string>
+          </dict>
+          </plist>" > masterdir-x86_64/var/db/xbps/keys/f9:75:69:31:bd:ee:dd:5e:d7:48:97:7f:4b:f1:0f:72.plist
+          sudo -Eu builder xbps-install -r masterdir-x86_64 --repo=https://rxelelo.github.io/noctalia-void-repo -S jq curl noctalia-qs -y
+
+      - name: Build -git packages
+        run: |
+          for pkg in ${{ steps.changed.outputs.packages }}; do
+            echo "=> Building $pkg"
+            sudo -Eu builder sh -c "cd void-packages && ./xbps-src -E pkg $pkg"
+          done
+          # Record exactly what was just built (used by cleanup step)
+          ls void-packages/hostdir/binpkgs/*.xbps | xargs -n1 basename > /tmp/latest.list
+          echo "=> Built packages:"
+          cat /tmp/latest.list
+
+      - name: Sign and index repo
+        run: |
+          echo "${{ secrets.XBPS_PRIVATE_KEY }}" > /tmp/privkey.pem
+          openssl rsa -in /tmp/privkey.pem -out /tmp/privkey_rsa.pem
+          xbps-rindex --sign-pkg --signedby "Rain Xelelo" \
+            --privkey /tmp/privkey_rsa.pem void-packages/hostdir/binpkgs/*.xbps
+          xbps-rindex -a void-packages/hostdir/binpkgs/*.xbps
+          xbps-rindex --sign --signedby "Rain Xelelo" \
+            --privkey /tmp/privkey_rsa.pem void-packages/hostdir/binpkgs
+          rm /tmp/privkey.pem /tmp/privkey_rsa.pem
+          mkdir -p $GITHUB_WORKSPACE/repo
+          cp void-packages/hostdir/binpkgs/* $GITHUB_WORKSPACE/repo/
+
+      - name: Merge with existing repo and clean old versions
+        run: |
+          REPO_DIR="/__w/noctalia-void-repo/noctalia-void-repo/repo"
+          mkdir -p $REPO_DIR
+
+          # Fetch existing gh-pages packages
+          git fetch origin gh-pages 2>/dev/null || true
+          mkdir -p /tmp/existing-repo
+          git --work-tree=/tmp/existing-repo checkout origin/gh-pages -- . 2>/dev/null || true
+          cp /tmp/existing-repo/*.xbps $REPO_DIR/ 2>/dev/null || true
+          cp /tmp/existing-repo/*.sig2 $REPO_DIR/ 2>/dev/null || true
+
+          # Remove old versions of anything we just built
+          cd $REPO_DIR
+          while read newly_built; do
+            pkg_base=$(echo "$newly_built" | sed 's/-[0-9].*//')
+            echo "=> Cleaning old versions of: $pkg_base"
+            for file in $(ls *.xbps 2>/dev/null | grep "^${pkg_base}-[0-9]"); do
+              [ "$file" = "$newly_built" ] && continue
+              echo "   Removing: $file"
+              rm -f "$file" "${file}.sig2"
+            done
+          done < /tmp/latest.list
+
+          # Re-index
+          echo "${{ secrets.XBPS_PRIVATE_KEY }}" > /tmp/privkey.pem
+          openssl rsa -in /tmp/privkey.pem -out /tmp/privkey_rsa.pem
+          xbps-rindex -a *.xbps
+          xbps-rindex --sign --signedby "Rain Xelelo" \
+            --privkey /tmp/privkey_rsa.pem .
+          rm /tmp/privkey.pem /tmp/privkey_rsa.pem
+
+      - name: Publish to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./repo
+          keep_files: false
