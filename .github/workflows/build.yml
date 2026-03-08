@@ -138,7 +138,9 @@ jobs:
           elif [ -n "${{ needs.update.outputs.updated_packages }}" ]; then
             echo "packages=${{ needs.update.outputs.updated_packages }}" >> $GITHUB_OUTPUT
           else
-            CHANGED=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} \
+            # Use HEAD^ HEAD to only diff the single latest commit,
+            # avoiding false positives from older commits in the push range.
+            CHANGED=$(git diff --name-only HEAD^ HEAD \
               | grep '^srcpkgs/' \
               | cut -d'/' -f2 \
               | sort -u \
