@@ -1,6 +1,6 @@
-# Noctalia Void Linux Repository
+# Void Linux Repository
 
-A custom XBPS repository providing `noctalia-qs` and `noctalia-shell` packages for Void Linux.
+A custom XBPS repository for Void Linux.
 
 ---
 
@@ -9,7 +9,7 @@ A custom XBPS repository providing `noctalia-qs` and `noctalia-shell` packages f
 ### 1. Add the repository source
 
 ```bash
-echo "repository=https://rxelelo.github.io/noctalia-void-repo" \
+echo "repository=https://rxelelo.github.io/void-repo" \
   | sudo tee /etc/xbps.d/noctalia.conf
 ```
 
@@ -23,27 +23,7 @@ You should see the repository appear in the sync output. If you get a signature 
 
 ---
 
-## Installing Packages
-
-### Noctalia Shell (recommended)
-
-Installs the full shell along with all required dependencies including `noctalia-qs`:
-
-```bash
-sudo xbps-install noctalia-shell
-```
-
-### Noctalia QS only
-
-If you only want the Quickshell fork without the shell config:
-
-```bash
-sudo xbps-install noctalia-qs
-```
-
----
-
-## Optional Dependencies
+## Optional Dependencies (Noctalia Shell)
 
 These are not installed automatically but unlock additional features:
 
@@ -85,7 +65,7 @@ Note: removing the repo source does not uninstall already-installed packages.
 
 ---
 
-## Troubleshooting
+## Troubleshooting (Noctalia Shell)
 
 **Signature verification failed**
 Make sure the public key is in `/var/db/xbps/keys/` and re-run `sudo xbps-install -S`.
