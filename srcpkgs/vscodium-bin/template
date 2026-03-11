@@ -1,0 +1,57 @@
+# Template file for 'vscodium-bin'
+pkgname=vscodium-bin
+version=1.110.11631
+revision=0
+archs="x86_64 aarch64"
+short_desc="Binary releases of VS Code without MS branding/telemetry/licensing"
+maintainer="Carson Rueter <swurl at swurl dot xyz>"
+license="MIT"
+homepage="https://github.com/VSCodium/vscodium"
+depends="fontconfig libXtst gtk+3 python3 cairo alsa-lib nss libnotify libXScrnSaver bash"
+
+_pkgname=VSCodium
+distfiles="https://github.com/VSCodium/vscodium/releases/download/${version}/${_pkgname}-linux-x64-${version}.tar.gz"
+checksum="c76527d3ce480654d3bbdf1fbf567e20dbbc50346db5b6cd24c649dd17873cd1"
+
+do_install() {
+	# Main application directory
+	vmkdir opt/${pkgname}
+	vmkdir usr/bin
+
+	# Copy all extracted files
+	cp -r ${wrksrc}/* ${DESTDIR}/opt/${pkgname}/
+
+	# Remove leftover source symlinks
+	find "${DESTDIR}/opt/${pkgname}" -maxdepth 1 -type l -delete
+
+	# Symlinks for binaries
+	ln -sf /opt/${pkgname}/bin/codium ${DESTDIR}/usr/bin/vscodium
+
+	# Desktop entries
+	vinstall ${FILESDIR}/vscodium-bin.desktop 644 usr/share/applications codium.desktop
+	vinstall ${FILESDIR}/vscodium-bin-url-handler.desktop 644 usr/share/applications codium-url-handler.desktop
+
+	# Icons
+	vmkdir usr/share/pixmaps
+	vinstall ${wrksrc}/resources/app/resources/linux/code.png 644 usr/share/pixmaps vscodium.png
+	vmkdir usr/share/icons/hicolor/scalable/apps
+	# SVG fetched separately; place it in FILESDIR or fetch via additional distfile
+	vinstall ${FILESDIR}/code.svg 644 usr/share/icons/hicolor/scalable/apps vscodium.svg
+
+	# Wrapper script
+	vinstall ${FILESDIR}/vscodium-bin.sh 755 usr/bin codium
+
+	# chrome-sandbox needs setuid
+	chmod 4755 ${DESTDIR}/opt/${pkgname}/chrome-sandbox
+
+	# License
+	vlicense ${FILESDIR}/LICENSE
+
+	# Shell completions
+	vmkdir usr/share/zsh/site-functions
+	vmkdir usr/share/bash-completion/completions
+	ln -s /opt/${pkgname}/resources/completions/zsh/_codium \
+		${DESTDIR}/usr/share/zsh/site-functions/_codium
+	ln -s /opt/${pkgname}/resources/completions/bash/codium \
+		${DESTDIR}/usr/share/bash-completion/completions/codium
+}

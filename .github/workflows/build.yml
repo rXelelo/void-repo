@@ -231,6 +231,44 @@ jobs:
           xbps-rindex --sign --signedby "Rain Xelelo" \
             --privkey /tmp/privkey_rsa.pem .
           rm /tmp/privkey.pem /tmp/privkey_rsa.pem
+          cat > "$REPO_DIR/index.html" << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <title>Index of /</title>
+            <style>
+              body { font-family: monospace; background: #fff; color: #000; margin: 20px; }
+              h1 { font-size: 1.2em; }
+              hr { border: 1px solid #000; }
+              table { width: 100%; border-collapse: collapse; }
+              td { padding: 2px 10px; white-space: nowrap; }
+              td:last-child { text-align: right; }
+              a { color: #00e; }
+              a:visited { color: #551a8b; }
+            </style>
+          </head>
+          <body>
+          <h1>Index of /</h1>
+          <hr>
+          <table>
+            <tr><td><a href="../">../</a></td><td></td><td>-</td></tr>
+          EOF
+          
+          for f in "$REPO_DIR"/*.xbps; do
+            [ -f "$f" ] || continue
+            fname=$(basename "$f")
+            fdate=$(date -r "$f" "+%d-%b-%Y %H:%M")
+            fsize=$(stat -c%s "$f")
+            echo "  <tr><td><a href=\"$fname\">$fname</a></td><td>$fdate</td><td>$fsize</td></tr>" >> "$REPO_DIR/index.html"
+          done
+
+          cat >> "$REPO_DIR/index.html" << 'EOF'
+          </table>
+          <hr>
+          </body>
+          </html>
+          EOF
 
       - name: Publish to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

@@ -1,0 +1,57 @@
+# Template file for 'niri-wip-git'
+DATA=$(curl -s "https://api.github.com/repos/niri-wm/niri/tags" | jq -r '.[0]')
+MAIN=$(curl -S "https://api.github.com/repos/niri-wm/niri/git/ref/heads/wip/branch")
+TAG=$(echo $DATA | jq -r '.name')
+SHA=$(echo $MAIN | jq -r '.object.sha[:7]')
+NEW_TAG=$(echo $TAG | awk -F. '{print $1"."$2"."$3+1}')
+
+# Template file for 'niri-wip-git'
+pkgname=niri-wip-git
+version="$NEW_TAG.r$SHA"
+revision=0
+build_style=cargo
+build_helper="qemu"
+configure_args="--no-default-features --features dbus,xdp-gnome-screencast"
+conflicts="niri"
+hostmakedepends="pkg-config clang19-devel git"
+makedepends="eudev-libudev-devel libxkbcommon-devel libinput-devel libgbm-devel
+ libdisplay-info-devel pipewire-devel pango-devel libseat-devel clang19-devel
+ gdk-pixbuf-devel graphene-devel gtk4-devel libadwaita-devel"
+depends="wayland"
+checkdepends="wayland"
+short_desc="Scrollable-tiling Wayland compositor (WIP git branch)"
+maintainer="Andrew J. Hesford <ajh@sideband.org>"
+license="GPL-3.0-or-later"
+homepage="https://github.com/niri-wm/niri"
+changelog="https://github.com/YaLTeR/niri/releases"
+_giturl="$homepage.git"
+_gitbranch="wip/branch"
+wrksrc="niri-wip"
+
+do_fetch() {
+    git clone --depth=1 -b "${_gitbranch}" "${_giturl}" "${XBPS_BUILDDIR}/${pkgname}-${version}"
+}
+
+pre_check() {
+	export XDG_RUNTIME_DIR=$(mktemp -d "$wrksrc/runtime.XXXXXX")
+	ulimit -n 4096
+}
+
+do_check() {
+	if [ "$XBPS_TARGET_LIBC" != "musl" ]; then
+		cargo test --target ${RUST_TARGET} --workspace --locked -- --skip=::egl
+	fi
+}
+
+post_install() {
+	local sh
+
+	vinstall resources/niri.desktop 644 usr/share/wayland-sessions
+	vinstall resources/niri-portals.conf 644 usr/share/xdg-desktop-portal
+
+	for sh in bash fish zsh; do
+		vtargetrun "${DESTDIR}/usr/bin/niri" completions "${sh}" > "niri.${sh}"
+		vcompletion "niri.${sh}" "${sh}"
+	done
+}
+

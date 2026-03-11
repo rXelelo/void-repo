@@ -1,0 +1,37 @@
+# Template file for 'rclient'
+pkgname=rclient
+version=2.2.3
+revision=0
+archs="x86_64"
+short_desc="Yet another fork of TaterClient for DDNet"
+maintainer="Rain Xelelo <rxelelo@outlook.com>"
+license="custom"
+homepage="https://rushie-client.ru/"
+distfiles="https://github.com/RushieClient/RushieClient-ddnet/releases/download/V${version}/RClient-ubuntu.tar.xz"
+checksum=a24a16cf89fa0e106c9f16eecb21b615abb73694d56bed4db1d8b5900735d3da
+
+depends="freetype opusfile curl glew wavpack ffmpeg libnotify miniupnpc sqlite libmariadbclient vulkan-loader"
+
+do_extract() {
+	mkdir -p ${wrksrc}/game
+	bsdtar -xf ${XBPS_SRCDISTDIR}/${pkgname}-${version}/RClient-ubuntu.tar.xz -C ${wrksrc}
+	cp -r ${wrksrc}/RClient-*-linux_x86_64/* ${wrksrc}/game
+	rm -rf ${wrksrc}/RClient-*-linux_x86_64
+	chmod +x ${wrksrc}/game/DDNet
+}
+
+do_install() {
+	vmkdir opt/${pkgname}/game
+	vcopy ${wrksrc}/game/* opt/${pkgname}/game/
+
+	vmkdir usr/bin
+	printf '#!/bin/bash\nexec /opt/rclient/game/DDNet\n' > ${DESTDIR}/usr/bin/rclient
+	chmod 0755 ${DESTDIR}/usr/bin/rclient
+
+	vmkdir usr/share/applications
+	printf '[Desktop Entry]\nVersion=2.2.1\nName=RClient\nStartupNotify=true\nTryExec=rclient\nExec=rclient\nTerminal=false\nIcon=/opt/rclient/rclient.png\nType=Application\nCategories=Game\n' > ${DESTDIR}/usr/share/applications/rclient.desktop
+
+	# Icon: place rclient.png in srcpkgs/rclient/files/ then uncomment:
+        vinstall ${FILESDIR}/rclient.png 0644 opt/rclient
+}
+

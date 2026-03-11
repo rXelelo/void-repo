@@ -1,0 +1,6 @@
+#!/bin/sh
+case "${ACTION}" in
+    post)
+        echo "==> NOTE: Custom flags should be put directly in: ~/.config/codium-flags.conf"
+        ;;
+esac
