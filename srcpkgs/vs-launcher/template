@@ -1,0 +1,28 @@
+# Template file for 'vs-launcher'
+pkgname=vs-launcher
+version=1.5.8
+revision=0
+short_desc="Unofficial launcher and version manager for Vintage Story"
+maintainer="Rain Xelelo <rXelelo@outlook.com>"
+license="custom:vs-launcher"
+homepage="https://vsldocs.xurxomf.xyz"
+distfiles="https://github.com/XurxoMF/vs-launcher/releases/download/$version/vs-launcher-$version.deb"
+checksum=fa584d5c849ff82ab6132257310e04b9a4c5a72d59de16679c023acce8ea77ce
+archs="x86_64"
+
+depends="gtk+3 libnotify nss libXScrnSaver libXtst xdg-utils at-spi2-core util-linux libsecret ffmpeg"
+
+do_extract() {
+	bsdtar -xf "${XBPS_SRCDISTDIR}/${pkgname}-${version}/vs-launcher-${version}.deb"
+	mkdir -p "${wrksrc}/vs-launcher"
+	bsdtar -xf "${wrksrc}/data.tar.xz" -C "${wrksrc}/vs-launcher"
+}
+
+do_install() {
+	cp -R "${wrksrc}/vs-launcher/." "${DESTDIR}"
+
+	vlicense ${FILESDIR}/LICENSE
+	vbin ${FILESDIR}/vs-launcher-wrapper
+	vinstall ${FILESDIR}/vs-launcher.desktop 644 usr/share/applications
+}
+

@@ -191,7 +191,6 @@ jobs:
             https://oauth2:${{ secrets.CODEBERG_TOKEN }}@codeberg.org/${{ secrets.CODEBERG_USER }}/${{ secrets.CODEBERG_REPO }}.git \
             /tmp/codeberg-repo; then
             echo "=> Cloned pages branch successfully"
-            rm -f /tmp/codeberg-repo/read
           else
             echo "=> pages branch clone failed, initializing fresh"
             mkdir -p /tmp/codeberg-repo
