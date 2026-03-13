@@ -1,6 +1,6 @@
 # Template file for 'rclient'
 pkgname=rclient
-version=2.2.3
+version=2.2.4
 revision=0
 archs="x86_64"
 short_desc="Yet another fork of TaterClient for DDNet"
