@@ -65,7 +65,7 @@ Note: removing the repo source does not uninstall already-installed packages.
 
 ---
 
-## Troubleshooting (Noctalia Shell)
+## Troubleshooting
 
 **Signature verification failed**
 Make sure the public key is in `/var/db/xbps/keys/` and re-run `sudo xbps-install -S`.
