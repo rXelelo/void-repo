@@ -9,7 +9,7 @@ A custom XBPS repository for Void Linux.
 ### 1. Add the repository source
 
 ```bash
-echo "repository=https://void-repo.r1xelelo.workers.dev/" \
+echo "repository=https://void-repo.r1xelelo.workers.dev" \
   | sudo tee /etc/xbps.d/noctalia.conf
 ```
 
